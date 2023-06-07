@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Keystroke Data Collection</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <h1>Keystroke Data Collection</h1>
+  <p>Type in the input field below:</p>
+  <input type="text" id="textInput">
+  <script>
+    const durations = [];
+    let keyPressTime = null;
+    let locationData = null;
+
+    function recordKeyPress(event) {
+      if (event.keyCode === 9 || event.keyCode === 13) {
+        return;
+      }
+      keyPressTime = new Date().getTime();
+    }
+
+    function recordKeyRelease(event) {
+      if (event.keyCode === 9 || event.keyCode === 13) {
+        return;
+      }
+      const keyReleaseTime = new Date().getTime();
+      const pressDuration = keyPressTime ? keyReleaseTime - keyPressTime : 0;
+      if (pressDuration <= 1000) {
+        durations.push(pressDuration);
+      }
+      keyPressTime = null;
+    }
+
+    const inputField = document.getElementById('textInput');
+
+    inputField.addEventListener('keydown', recordKeyPress);
+    inputField.addEventListener('keyup', recordKeyRelease);
+
+    function getUserLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+      } else {
+        console.error('Geolocation is not supported by this browser.');
+      }
+    }
+
+    function successCallback(position) {
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+      locationData = {
+        latitude,
+        longitude
+      };
+      sendKeystrokes();
+    }
+
+    function errorCallback(error) {
+      console.error('Error getting user location:', error);
+      sendKeystrokes();
+    }
+
+    function sendKeystrokes() {
+      const data = {
+        durations,
+        location: locationData
+      };
+
+      $.ajax({
+        type: 'POST',
+        url: 'http://localhost:3000/keystrokes',
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        success: function () {
+          console.log('Keystroke data sent successfully');
+          durations.length = 0;
+        },
+        error: function (error) {
+          console.error('Error sending keystroke data:', error);
+        }
+      });
+    }
+
+    inputField.addEventListener('blur', getUserLocation);
+  </script>
+</body>
+</html>
